@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Calls Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        /* ... existing styles ... */
+
+        .month-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .month-btn {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 20px;
+            background-color: #f0f0f0;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .month-btn:hover, .month-btn.active {
+            background-color: #333;
+            color: #fff;
+        }
+
+        .whatsapp-btn, .call-btn {
+            padding: 5px 10px;
+            margin: 2px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .whatsapp-btn {
+            background-color: #25D366;
+            color: white;
+        }
+
+        .call-btn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .dustbin-icon {
+            transition: transform 0.2s ease-in-out;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .dustbin-icon:hover {
+            transform: scale(1.2);
+        }
+
+        .card-footer {
+            padding: 15px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+
+        #printBtn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        #printBtn:hover {
+            background-color: #0056b3;
+        }
+
+        #clearAllBtn {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        #clearAllBtn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="dashboard-title">Monthly Calls Dashboard</h1>
+            <div class="header-buttons">
+                <button class="btn btn-dark" id="backBtn">Back</button>
+                <!-- <button class="btn" id="settingsBtn">⚙️</button> -->
+            </div>
+        </div>
+
+        <div id="currentMonth" class="current-date"></div>
+
+        <div class="month-buttons">
+            <button class="month-btn" data-month="1">January</button>
+            <button class="month-btn" data-month="2">February</button>
+            <button class="month-btn" data-month="3">March</button>
+            <button class="month-btn" data-month="4">April</button>
+            <button class="month-btn" data-month="5">May</button>
+            <button class="month-btn" data-month="6">June</button>
+            <button class="month-btn" data-month="7">July</button>
+            <button class="month-btn" data-month="8">August</button>
+            <button class="month-btn" data-month="9">September</button>
+            <button class="month-btn" data-month="10">October</button>
+            <button class="month-btn" data-month="11">November</button>
+            <button class="month-btn" data-month="12">December</button>
+        </div>
+
+        <div class="card">
+            <h2>Monthly Call Summary</h2>
+            <div class="call-summary">
+                <div class="summary-row firstrow">
+                    <div class="summary-card toatalcalls" id="totalCallsCard">
+                        <div class="number" id="totalCallsSummary">0</div>
+                        <div>Total Calls</div>
+                    </div>
+                </div>
+                <div class="summary-row secondrow">
+                    <div class="summary-card answredcalls notinterestedcard">
+                        <div class="number green" id="notInterestedCallsSummary">0</div>
+                        <div>Not Interested</div>
+                    </div>
+                    <div class="summary-card unanswredcalls">
+                        <div class="number red" id="unansweredCallsSummary">0</div>
+                        <div>Unanswered</div> 
+                    </div>
+                </div>
+                <div class="summary-row thirdrow">
+                    <div class="summary-card callbackcalls callbackcard" id="callbackCard">
+                        <div class="number orange" id="callBackCallsSummary">0</div>
+                        <div>Callback</div>
+                    </div>
+                    <div class="summary-card intreastedcalls interestedcard" id="interestedCard">
+                        <div class="number blue" id="interestedCallsSummary">0</div>
+                        <div>Interested</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card call-details-card" id="callDetailsCard" style="display: none;">
+            <div class="card-header">
+                <h2>Call Details</h2>
+            </div>
+            <div class="table-responsive">
+                <table class="call-details-table">
+                    <thead>
+                        <tr>
+                            <th>Contact</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="callDetailsBody">
+                        <!-- Call details will be populated here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer">
+                <div class="button-container">
+                    <button id="printBtn" class="btn action-btn">Print</button>
+                    <button id="clearAllBtn" class="btn action-btn" style="display: none;">Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const monthButtons = document.querySelectorAll('.month-btn');
+            const currentDate = new Date();
+            const currentMonth = currentDate.getMonth() + 1;
+            const currentYear = currentDate.getFullYear();
+            let cachedData = {};
+
+            // Function to fetch and display data for the given month
+            function fetchAndDisplayMonthData(month, year) {
+                console.log(`Fetching data for month: ${month}, year: ${year}`);
+                // Show loading indicator
+                document.getElementById('currentMonth').textContent = 'Loading...';
+
+                const startDate = new Date(year, month - 1, 1).getTime();
+                const endDate = new Date(year, month, 0, 23, 59, 59, 999).getTime();
+
+                database.ref('calls')
+                    .orderByChild('timestamp')
+                    .startAt(startDate)
+                    .endAt(endDate)
+                    .once('value')
+                    .then((snapshot) => {
+                        const monthData = [];
+                        snapshot.forEach((childSnapshot) => {
+                            monthData.push(childSnapshot.val());
+                        });
+                        
+                        cachedData[`${year}-${month}`] = monthData;
+                        console.log(`Data fetched for ${month}/${year}:`, monthData);
+                        updateDashboard(monthData, month, year);
+                    })
+                    .catch((error) => {
+                        console.error("Error fetching month data:", error);
+                        updateDashboard([], month, year); // Update with empty data in case of error
+                    });
+            }
+
+            // Function to update active button
+            function updateActiveButton(month) {
+                monthButtons.forEach(btn => btn.classList.remove('active'));
+                const activeButton = document.querySelector(`.month-btn[data-month="${month}"]`);
+                if (activeButton) {
+                    activeButton.classList.add('active');
+                }
+            }
+
+            // Fetch current month's data and update active button on page load
+            console.log('Page loaded. Fetching current month data.');
+            fetchAndDisplayMonthData(currentMonth, currentYear);
+            updateActiveButton(currentMonth);
+
+            // Add click event listeners to month buttons
+            monthButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const selectedMonth = parseInt(button.dataset.month);
+                    console.log(`Month button clicked: ${selectedMonth}`);
+                    fetchAndDisplayMonthData(selectedMonth, currentYear);
+                    updateActiveButton(selectedMonth);
+                });
+            });
+
+            function updateDashboard(data, month, year) {
+                console.log(`Updating dashboard for ${month}/${year} with ${data.length} records`);
+                const monthNames = ["January", "February", "March", "April", "May", "June",
+                                    "July", "August", "September", "October", "November", "December"];
+
+                document.getElementById('currentMonth').textContent = `${monthNames[month - 1]} ${year}`;
+
+                // Always update summary cards, show 0 if no data
+                document.getElementById('totalCallsSummary').textContent = data.length || '0';
+                document.getElementById('notInterestedCallsSummary').textContent = data.filter(call => call.status === 'Not Interested').length || '0';
+                document.getElementById('unansweredCallsSummary').textContent = data.filter(call => call.status === 'Unanswered').length || '0';
+                document.getElementById('callBackCallsSummary').textContent = data.filter(call => call.status === 'Callback').length || '0';
+                document.getElementById('interestedCallsSummary').textContent = data.filter(call => call.status === 'Interested').length || '0';
+
+                // Hide call details card by default
+                document.getElementById('callDetailsCard').style.display = 'none';
+            }
+
+            function updateCallDetails(data) {
+                const callDetailsBody = document.getElementById('callDetailsBody');
+                callDetailsBody.innerHTML = '';
+
+                if (data.length === 0) {
+                    document.getElementById('callDetailsCard').style.display = 'none';
+                } else {
+                    data.forEach(call => {
+                        const row = document.createElement('tr');
+                        const callDate = new Date(call.timestamp);
+                        const date = callDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                        const time = callDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        row.innerHTML = `
+                            <td>${call.number}</td>
+                            <td>${call.status}</td>
+                            <td>${call.duration || 'N/A'}</td>
+                            <td>${date}</td>
+                            <td>${time}</td>
+                        `;
+                        callDetailsBody.appendChild(row);
+                    });
+                    document.getElementById('callDetailsCard').style.display = 'block';
+                }
+            }
+
+            // Update the event listener for the back button
+            const backBtn = document.getElementById('backBtn');
+            if (backBtn) {
+                backBtn.addEventListener('click', function() {
+                    window.history.back(); // Navigate to the previous page
+                });
+            }
+
+            // Add event listeners for summary cards
+            const addClickListener = (id, status) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('click', () => toggleCallDetails(status));
+                }
+            };
+
+            addClickListener('totalCallsCard', 'Total');
+            addClickListener('notInterestedCallsSummary', 'Not Interested');
+            addClickListener('unansweredCallsSummary', 'Unanswered');
+            addClickListener('callBackCallsSummary', 'Callback');
+            addClickListener('interestedCallsSummary', 'Interested');
+
+            // Function to toggle call details
+            function toggleCallDetails(status) {
+                const callDetailsCard = document.getElementById('callDetailsCard');
+                if (callDetailsCard.style.display === 'none' || callDetailsCard.dataset.currentStatus !== status) {
+                    showCallDetails(status);
+                } else {
+                    callDetailsCard.style.display = 'none';
+                }
+            }
+
+            // Function to show call details
+            function showCallDetails(status) {
+                const callDetailsBody = document.getElementById('callDetailsBody');
+                callDetailsBody.innerHTML = '';
+
+                let filteredCalls = cachedData[`${currentYear}-${currentMonth}`] || [];
+                if (status !== 'Total') {
+                    filteredCalls = filteredCalls.filter(call => call.status === status);
+                }
+
+                filteredCalls.forEach(call => {
+                    const row = document.createElement('tr');
+                    const callDate = new Date(call.timestamp);
+                    const date = callDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                    const time = callDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    row.innerHTML = `
+                        <td>${call.number}</td>
+                        <td>${call.status}</td>
+                        <td>${call.duration || 'N/A'}</td>
+                        <td>${date}</td>
+                        <td>${time}</td>
+                    `;
+                    callDetailsBody.appendChild(row);
+                });
+
+                const callDetailsCard = document.getElementById('callDetailsCard');
+                callDetailsCard.style.display = 'block';
+                callDetailsCard.dataset.currentStatus = status;
+                document.querySelector('.call-details-card h2').textContent = `${status} Call Details`;
+            }
+
+            // Update the showCallDetails function
+            function showCallDetails(status) {
+                const callDetailsBody = document.getElementById('callDetailsBody');
+                callDetailsBody.innerHTML = '';
+
+                let filteredCalls = callData.details;
+                if (status !== 'Total') {
+                    filteredCalls = callData.details.filter(call => call.status === status);
+                }
+
+                // Sort calls by timestamp in descending order (most recent first)
+                filteredCalls.sort((a, b) => b.timestamp - a.timestamp);
+
+                // Define status colors and styles
+                const statusStyles = {
+                    'Interested': 'background-color: #28a745; color: white; padding: 3px 8px; border-radius: 12px;',
+                    'Not Interested': 'background-color: #dc3545; color: white; padding: 3px 8px; border-radius: 12px;',
+                    'Callback': 'background-color: #007bff; color: white; padding: 3px 8px; border-radius: 12px;',
+                    'Unanswered': 'background-color: #ffc107; color: black; padding: 3px 8px; border-radius: 12px;'
+                };
+
+                const showDustbin = status === 'Interested';
+
+                filteredCalls.forEach(call => {
+                    const row = document.createElement('tr');
+                    const callDate = new Date(call.timestamp);
+                    const date = callDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                    const time = callDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    
+                    // Extract the last 10 digits of the phone number
+                    const phoneNumber = call.number.replace(/\D/g, '').slice(-10);
+                    
+                    // Add dustbin icon only when viewing Interested Call Details
+                    const dustbinIcon = showDustbin ? 
+                        `<img src="images/dustbin.png" alt="Delete" class="dustbin-icon" data-number="${phoneNumber}">` : '';
+
+                    // Add data-number attribute to the row
+                    row.setAttribute('data-number', phoneNumber);
+
+                    row.innerHTML = `
+                        <td>${dustbinIcon}${call.number}</td>
+                        <td><span style="${statusStyles[call.status]}">${call.status}</span></td>
+                        <td>${call.duration || 'N/A'}</td>
+                        <td>${date}</td>
+                        <td>${time}</td>
+                        ${(call.status === 'Callback' || call.status === 'Interested') ? `
+                        <td>
+                            <button class="whatsapp-btn" data-number="91${phoneNumber}">WhatsApp</button>
+                            <button class="call-btn" data-number="${phoneNumber}">Call</button>
+                        </td>
+                        ` : '<td></td>'}
+                    `;
+                    callDetailsBody.appendChild(row);
+                });
+
+                const callDetailsCard = document.getElementById('callDetailsCard');
+                callDetailsCard.style.display = 'block';
+                callDetailsCard.dataset.currentStatus = status;
+                document.querySelector('.call-details-card h2').textContent = `${status} Call Details`;
+
+                // Add event listeners for WhatsApp and Call buttons
+                const whatsappButtons = document.querySelectorAll('.whatsapp-btn');
+                const callButtons = document.querySelectorAll('.call-btn');
+
+                whatsappButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const phoneNumber = this.getAttribute('data-number');
+                        const preloadedText = "Hello! I'm reaching out regarding our previous conversation about real estate opportunities.";
+                        const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(preloadedText)}`;
+                        window.open(whatsappUrl, '_blank');
+                    });
+                });
+
+                callButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const phoneNumber = this.getAttribute('data-number');
+                        window.open(`tel:${phoneNumber}`, '_self');
+                    });
+                });
+
+                // Add event listeners for dustbin icons only when viewing Interested Call Details
+                if (showDustbin) {
+                    const dustbinIcons = document.querySelectorAll('.dustbin-icon');
+                    dustbinIcons.forEach(icon => {
+                        icon.addEventListener('click', function() {
+                            const phoneNumber = this.getAttribute('data-number');
+                            if (confirm(`Are you sure you want to delete the record for ${phoneNumber}?`)) {
+                                deleteRecord(phoneNumber);
+                            }
+                        });
+                    });
+                }
+
+                const clearAllBtn = document.getElementById('clearAllBtn');
+                if (status !== 'Interested') {
+                    clearAllBtn.style.display = 'inline-block';
+                    clearAllBtn.setAttribute('data-status', status);
+                } else {
+                    clearAllBtn.style.display = 'none';
+                }
+            }
+
+            function deleteRecord(phoneNumber) {
+                const database = firebase.database();
+                
+                database.ref('calls').orderByChild('number').equalTo(phoneNumber).once('value', snapshot => {
+                    snapshot.forEach(childSnapshot => {
+                        childSnapshot.ref.remove()
+                            .then(() => {
+                                console.log(`Record for ${phoneNumber} deleted successfully`);
+                                // Update the UI immediately after successful deletion
+                                updateUIAfterDeletion(phoneNumber);
+                            })
+                            .catch(error => {
+                                console.error('Error deleting record:', error);
+                            });
+                    });
+                });
+            }
+
+            function updateUIAfterDeletion(phoneNumber) {
+                // Remove the deleted row from the table
+                const row = document.querySelector(`tr[data-number="${phoneNumber}"]`);
+                if (row) {
+                    row.remove();
+                }
+
+                // Update the summary numbers
+                const interestedCallsSummary = document.getElementById('interestedCallsSummary');
+                const totalCallsSummary = document.getElementById('totalCallsSummary');
+                
+                if (interestedCallsSummary) {
+                    let currentCount = parseInt(interestedCallsSummary.textContent);
+                    interestedCallsSummary.textContent = (currentCount - 1).toString();
+                }
+                
+                if (totalCallsSummary) {
+                    let currentTotal = parseInt(totalCallsSummary.textContent);
+                    totalCallsSummary.textContent = (currentTotal - 1).toString();
+                }
+
+                // Update the cached data
+                const currentMonth = new Date().getMonth() + 1;
+                if (cachedData[currentMonth]) {
+                    cachedData[currentMonth] = cachedData[currentMonth].filter(call => call.number !== phoneNumber);
+                }
+            }
+
+            function clearCallDetails(status) {
+                const database = firebase.database();
+                const callsRef = database.ref('calls');
+
+                const currentDate = new Date();
+                const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+                if (status === 'Total') {
+                    // Clear all call details except Interested
+                    callsRef.orderByChild('timestamp')
+                        .startAt(firstDayOfMonth.getTime())
+                        .endAt(lastDayOfMonth.getTime())
+                        .once('value', snapshot => {
+                            const updates = {};
+                            snapshot.forEach(childSnapshot => {
+                                if (childSnapshot.val().status !== 'Interested') {
+                                    updates[childSnapshot.key] = null;
+                                }
+                            });
+                            callsRef.update(updates)
+                                .then(() => {
+                                    console.log('All non-Interested call details have been cleared for this month.');
+                                    updateUIAfterClear(status);
+                                })
+                                .catch((error) => {
+                                    console.error('Error clearing non-Interested call details:', error);
+                                    // alert('An error occurred while clearing data. Please try again.');
+                                });
+                        });
+                } else {
+                    // Clear specific status call details
+                    callsRef.orderByChild('timestamp')
+                        .startAt(firstDayOfMonth.getTime())
+                        .endAt(lastDayOfMonth.getTime())
+                        .once('value', snapshot => {
+                            const updates = {};
+                            snapshot.forEach(childSnapshot => {
+                                if (childSnapshot.val().status === status) {
+                                    updates[childSnapshot.key] = null;
+                                }
+                            });
+                            callsRef.update(updates)
+                                .then(() => {
+                                    console.log(`All ${status} call details have been cleared for this month.`);
+                                    updateUIAfterClear(status);
+                                })
+                                .catch((error) => {
+                                    console.error(`Error clearing ${status} call details:`, error);
+                                    // alert('An error occurred while clearing data. Please try again.');
+                                });
+                        });
+                }
+            }
+
+            function updateUIAfterClear(status) {
+                // Update the call details table
+                const callDetailsBody = document.getElementById('callDetailsBody');
+                callDetailsBody.innerHTML = '';
+
+                // Update the summary numbers
+                if (status === 'Total') {
+                    document.getElementById('totalCallsSummary').textContent = '0';
+                    document.getElementById('notInterestedCallsSummary').textContent = '0';
+                    document.getElementById('unansweredCallsSummary').textContent = '0';
+                    document.getElementById('callBackCallsSummary').textContent = '0';
+                    // Don't clear Interested calls
+                    const interestedCalls = cachedData[currentMonth].filter(call => call.status === 'Interested');
+                    document.getElementById('interestedCallsSummary').textContent = interestedCalls.length.toString();
+                } else {
+                    document.getElementById(`${status.toLowerCase()}CallsSummary`).textContent = '0';
+                    const totalCalls = parseInt(document.getElementById('totalCallsSummary').textContent);
+                    const clearedCalls = cachedData[currentMonth].filter(call => call.status === status).length;
+                    document.getElementById('totalCallsSummary').textContent = (totalCalls - clearedCalls).toString();
+                }
+
+                // Update the cached data
+                if (status === 'Total') {
+                    cachedData[currentMonth] = cachedData[currentMonth].filter(call => call.status === 'Interested');
+                } else {
+                    cachedData[currentMonth] = cachedData[currentMonth].filter(call => call.status !== status);
+                }
+
+                // Hide the clear button
+                document.getElementById('clearAllBtn').style.display = 'none';
+
+                // Update the call details view
+                showCallDetails(status);
+            }
+
+            // Add event listener for Clear All button
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            if (clearAllBtn) {
+                clearAllBtn.addEventListener('click', function() {
+                    const status = this.getAttribute('data-status');
+                    if (confirm(`Are you sure you want to clear all ${status} call details for this month? This action cannot be undone.`)) {
+                        clearCallDetails(status);
+                    }
+                });
+            }
+
+            // Update the print functionality
+            function printMonthlyCalls() {
+                const title = document.querySelector('.dashboard-title').textContent;
+                const currentStatus = document.querySelector('.call-details-card h2').textContent;
+                const tableContent = document.querySelector('.call-details-table').cloneNode(true);
+                
+                // Remove action buttons and dustbin icons from the cloned table
+                tableContent.querySelectorAll('.whatsapp-btn, .call-btn, .dustbin-icon').forEach(el => el.remove());
+                
+                // Remove the last column (Actions) if it's empty
+                const headerRow = tableContent.querySelector('thead tr');
+                const dataRows = tableContent.querySelectorAll('tbody tr');
+                if (headerRow.lastElementChild.textContent.trim() === 'Actions') {
+                    headerRow.lastElementChild.remove();
+                    dataRows.forEach(row => row.lastElementChild.remove());
+                }
+
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${title} - ${currentStatus}</title>
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                padding: 20px;
+                                max-width: 210mm;
+                                margin: 0 auto;
+                            }
+                            h1, h2 {
+                                text-align: center;
+                                color: #333;
+                            }
+                            h1 { font-size: 1.5em; }
+                            h2 { font-size: 1.2em; }
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                margin-bottom: 20px;
+                            }
+                            th, td {
+                                border: 1px solid #ddd;
+                                padding: 8px;
+                                text-align: left;
+                                font-size: 0.9em;
+                            }
+                            th {
+                                background-color: #f2f2f2;
+                            }
+                            .print-btn {
+                                display: block;
+                                width: 100%;
+                                max-width: 200px;
+                                margin: 20px auto;
+                                padding: 10px;
+                                background-color: #007bff;
+                                color: white;
+                                border: none;
+                                border-radius: 5px;
+                                cursor: pointer;
+                            }
+                            @media print {
+                                .print-btn {
+                                    display: none;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${title}</h1>
+                        <h2>${currentStatus}</h2>
+                        <div style="overflow-x: auto;">
+                            ${tableContent.outerHTML}
+                        </div>
+                        <button class="print-btn" onclick="window.print()">Print</button>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            }
+
+            // Add event listener for Print button
+            const printBtn = document.getElementById('printBtn');
+            if (printBtn) {
+                printBtn.addEventListener('click', printMonthlyCalls);
+            }
+
+            // Add event listener for settings button
+            const settingsBtn = document.getElementById('settingsBtn');
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', function() {
+                    alert('Settings clicked');
+                });
+            }
+
+            // Add event listener for dialpad trigger
+            const dialpadTrigger = document.getElementById('dialpadTrigger');
+            if (dialpadTrigger) {
+                dialpadTrigger.addEventListener('click', openDialpad);
+            }
+        });
+    </script>
+</body>
+</html>

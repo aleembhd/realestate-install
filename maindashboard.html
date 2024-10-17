@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Estate Telecaller Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        /* ... existing styles ... */
+        .whatsapp-btn, .call-btn {
+            padding: 5px 10px;
+            margin: 2px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .whatsapp-btn {
+            background-color: #25D366;
+            color: white;
+        }
+
+        .call-btn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        /* Add this to your existing styles */
+        .dustbin-icon {
+            transition: transform 0.2s ease-in-out;
+        }
+        .dustbin-icon:hover {
+            transform: scale(1.2);
+        }
+
+        /* Add or update these styles */
+        .card-footer {
+            padding: 15px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px; /* Add some space between buttons */
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+
+        #printBtn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        #printBtn:hover {
+            background-color: #0056b3;
+        }
+
+        #clearAllBtn {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        #clearAllBtn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="dashboard-title">Dashboard</h1>
+            <div class="header-buttons">
+                <button class="btn btn-dark" id="todayBtn">Today</button>
+                <button class="btn btn-dark" id="monthlyBtn">Monthly</button>
+            </div>
+        </div>
+
+        <div id="currentDate" class="current-date"></div>
+
+        <div class="card">
+            <h2>Call Summary</h2>
+            <div class="call-summary">
+                <div class="summary-row firstrow">
+                    <div class="summary-card toatalcalls" id="totalCallsCard">
+                        <div class="number" id="totalCallsSummary">0</div>
+                        <div>Total Calls</div>
+                    </div>
+                </div>
+                <div class="summary-row secondrow">
+                    <div class="summary-card answredcalls notinterestedcard">
+                        <div class="number green" id="notInterestedCallsSummary">0</div>
+                        <div>Not Interested</div>
+                    </div>
+                    <div class="summary-card unanswredcalls">
+                        <div class="number red" id="unansweredCallsSummary">0</div>
+                        <div>Unanswered</div> 
+                    </div>
+                </div>
+                <div class="summary-row thirdrow">
+                    <div class="summary-card callbackcalls callbackcard" id="callbackCard">
+                        <div class="number orange" id="callBackCallsSummary">0</div>
+                        <div>Callback</div>
+                    </div>
+                    <div class="summary-card intreastedcalls interestedcard" id="interestedCard">
+                        <div class="number blue" id="interestedCallsSummary">0</div>
+                        <div>Interested</div>
+                    </div>
+                </div>
+            </div>
+            <!-- <button class="btn btn-danger" id="clearDataBtn">Clear All Data</button> -->
+        </div>
+
+        <div class="card call-details-card" id="callDetailsCard" style="display: none;">
+            <div class="card-header">
+                <h2>Call Details</h2>
+            </div>
+            <div class="table-responsive">
+                <table class="call-details-table">
+                    <thead>
+                        <tr>
+                            <th>Contact</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="callDetailsBody">
+                        <!-- Call details will be populated here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer">
+                <div class="button-container">
+                    <button id="printBtn" class="btn action-btn">Print</button>
+                    <button id="clearAllBtn" class="btn action-btn">Clear </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script src="script.js"></script>
+    <script src="dialpad.js"></script>
+    
+    <script>
+        // This ensures that the openWhatsApp function is available globally
+        if (typeof window.openWhatsApp !== 'function') {
+            window.openWhatsApp = function(number) {
+                const formattedNumber = number.replace(/\D/g, '');
+                const whatsappUrl = `https://wa.me/91${formattedNumber}`;
+                window.open(whatsappUrl, '_blank');
+            };
+        }
+
+        function showCallDetails(status) {
+            const callDetailsBody = document.getElementById('callDetailsBody');
+            callDetailsBody.innerHTML = '';
+
+            let filteredCalls = callData.details;
+            if (status !== 'Total') {
+                filteredCalls = callData.details.filter(call => call.status === status);
+            }
+
+            // Sort calls by timestamp in descending order (most recent first)
+            filteredCalls.sort((a, b) => b.timestamp - a.timestamp);
+
+            filteredCalls.forEach(call => {
+                const row = document.createElement('tr');
+                const callDate = new Date(call.timestamp);
+                const date = callDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                const time = callDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                
+                // Extract the last 10 digits of the phone number
+                const phoneNumber = call.number.replace(/\D/g, '').slice(-10);
+                
+                // Add dustbin icon only for Interested calls when viewing Interested Call Details
+                const dustbinIcon = (status === 'Interested' && call.status === 'Interested') ? 
+                    `<img src="images/dustbin.png" alt="Delete" class="dustbin-icon" data-number="${phoneNumber}" style="width: 24px; height: 24px; cursor: pointer; margin-right: 5px; vertical-align: middle;">` : '';
+                
+                // Define status colors and styles
+                const statusStyles = {
+                    'Interested': 'background-color: #28a745; color: white; padding: 3px 8px; border-radius: 12px;',
+                    'Not Interested': 'background-color: #dc3545; color: white; padding: 3px 8px; border-radius: 12px;',
+                    'Callback': 'background-color: #007bff; color: white; padding: 3px 8px; border-radius: 12px;',
+                    'Unanswered': 'background-color: #ffc107; color: black; padding: 3px 8px; border-radius: 12px;',
+                    'Not Lift': 'background-color: #6c757d; color: white; padding: 3px 8px; border-radius: 12px;'
+                };
+                
+                row.innerHTML = `
+                    <td>${dustbinIcon}${call.number}</td>
+                    <td><span style="${statusStyles[call.status]}">${call.status}</span></td>
+                    <td>${call.duration || 'N/A'}</td>
+                    <td>${date}</td>
+                    <td>${time}</td>
+                    ${(status === 'Total' && (call.status === 'Callback' || call.status === 'Interested')) || status === 'Callback' || status === 'Interested' ? `
+                    <td>
+                        <button class="whatsapp-btn" data-number="91${phoneNumber}">WhatsApp</button>
+                        <button class="call-btn" data-number="${phoneNumber}">Call</button>
+                    </td>
+                    ` : '<td></td>'}
+                `;
+                callDetailsBody.appendChild(row);
+            });
+
+            const callDetailsCard = document.getElementById('callDetailsCard');
+            callDetailsCard.style.display = 'block';
+            document.querySelector('.call-details-card h2').textContent = `${status} Call Details`;
+
+            // Add event listeners for WhatsApp and Call buttons
+            const whatsappButtons = document.querySelectorAll('.whatsapp-btn');
+            const callButtons = document.querySelectorAll('.call-btn');
+
+            whatsappButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const phoneNumber = this.getAttribute('data-number');
+                    const preloadedText = "Hello! I'm reaching out regarding our previous conversation about real estate opportunities.";
+                    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(preloadedText)}`;
+                    window.open(whatsappUrl, '_blank');
+                });
+            });
+
+            callButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const phoneNumber = this.getAttribute('data-number');
+                    window.open(`tel:${phoneNumber}`, '_self');
+                });
+            });
+
+            // Add event listeners for dustbin icons
+            const dustbinIcons = document.querySelectorAll('.dustbin-icon');
+            dustbinIcons.forEach(icon => {
+                icon.addEventListener('click', function() {
+                    const phoneNumber = this.getAttribute('data-number');
+                    if (confirm(`Are you sure you want to delete the record for ${phoneNumber}?`)) {
+                        deleteRecord(phoneNumber);
+                    }
+                });
+            });
+
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            if (status !== 'Interested') {
+                clearAllBtn.style.display = 'inline-block';
+                clearAllBtn.setAttribute('data-status', status);
+            } else {
+                clearAllBtn.style.display = 'none';
+            }
+        }
+
+        function deleteRecord(phoneNumber) {
+            const database = firebase.database();
+            
+            database.ref('calls').orderByChild('number').equalTo(phoneNumber).once('value', snapshot => {
+                snapshot.forEach(childSnapshot => {
+                    childSnapshot.ref.remove()
+                        .then(() => {
+                            console.log(`Record for ${phoneNumber} deleted successfully`);
+                            // Update the UI immediately after successful deletion
+                            updateUIAfterDeletion(phoneNumber);
+                        })
+                        .catch(error => {
+                            console.error('Error deleting record:', error);
+                        });
+                });
+            });
+        }
+
+        function updateUIAfterDeletion(phoneNumber) {
+            // Remove the deleted call from the callData.details array
+            callData.details = callData.details.filter(call => call.number !== phoneNumber);
+
+            // Update the summary numbers
+            updateSummaryNumbers();
+
+            // Refresh the call details view
+            showCallDetails('Interested');
+        }
+
+        // Update the print functionality
+        function printCallDetails() {
+            const title = document.querySelector('.dashboard-title').textContent;
+            const currentStatus = document.querySelector('.call-details-card h2').textContent;
+            const tableContent = document.querySelector('.call-details-table').cloneNode(true);
+            
+            // Remove action buttons and dustbin icons from the cloned table
+            tableContent.querySelectorAll('.whatsapp-btn, .call-btn, .dustbin-icon').forEach(el => el.remove());
+            
+            // Remove the last column (Actions) if it's empty
+            const headerRow = tableContent.querySelector('thead tr');
+            const dataRows = tableContent.querySelectorAll('tbody tr');
+            if (headerRow.lastElementChild.textContent.trim() === 'Actions') {
+                headerRow.lastElementChild.remove();
+                dataRows.forEach(row => row.lastElementChild.remove());
+            }
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${title} - ${currentStatus}</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            padding: 20px;
+                            max-width: 210mm;
+                            margin: 0 auto;
+                        }
+                        h1, h2 {
+                            text-align: center;
+                            color: #333;
+                        }
+                        h1 { font-size: 1.5em; }
+                        h2 { font-size: 1.2em; }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 20px;
+                        }
+                        th, td {
+                            border: 1px solid #ddd;
+                            padding: 8px;
+                            text-align: left;
+                            font-size: 0.9em;
+                        }
+                        th {
+                            background-color: #f2f2f2;
+                        }
+                        .print-btn {
+                            display: block;
+                            width: 100%;
+                            max-width: 200px;
+                            margin: 20px auto;
+                            padding: 10px;
+                            background-color: #007bff;
+                            color: white;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                        }
+                        @media print {
+                            .print-btn {
+                                display: none;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>${title}</h1>
+                    <h2>${currentStatus}</h2>
+                    <div style="overflow-x: auto;">
+                        ${tableContent.outerHTML}
+                    </div>
+                    <button class="print-btn" onclick="window.print()">Print</button>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        // Add this new function to handle clearing specific call details
+        function clearCallDetails(status) {
+            if (confirm(`Are you sure you want to clear all ${status} call details?`)) {
+                const database = firebase.database();
+                const callsRef = database.ref('calls');
+
+                callsRef.once('value', snapshot => {
+                    const updates = {};
+                    snapshot.forEach(childSnapshot => {
+                        const call = childSnapshot.val();
+                        if (status === 'Total' || call.status === status) {
+                            updates[childSnapshot.key] = null;
+                        }
+                    });
+
+                    callsRef.update(updates)
+                        .then(() => {
+                            console.log(`${status} call details cleared successfully`);
+                            // Update the UI immediately after successful deletion
+                            updateUIAfterClearing(status);
+                        })
+                        .catch(error => {
+                            console.error('Error clearing call details:', error);
+                        });
+                });
+            }
+        }
+
+        function updateUIAfterClearing(status) {
+            // Remove the cleared calls from the callData.details array
+            if (status === 'Total') {
+                callData.details = [];
+            } else {
+                callData.details = callData.details.filter(call => call.status !== status);
+            }
+
+            // Update the summary numbers
+            updateSummaryNumbers();
+
+            // Refresh the call details view
+            showCallDetails(status);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const totalCallsCard = document.getElementById('totalCallsCard');
+            const notInterestedCard = document.querySelector('.notinterestedcard');
+            const unansweredCard = document.querySelector('.unanswredcalls');
+            const callbackCard = document.getElementById('callbackCard');
+            const interestedCard = document.getElementById('interestedCard');
+            const callDetailsCard = document.getElementById('callDetailsCard');
+
+            function toggleCallDetails(status) {
+                if (callDetailsCard.style.display === 'none' || callDetailsCard.getAttribute('data-status') !== status) {
+                    showCallDetails(status);
+                    callDetailsCard.style.display = 'block';
+                    callDetailsCard.setAttribute('data-status', status);
+                } else {
+                    callDetailsCard.style.display = 'none';
+                    callDetailsCard.setAttribute('data-status', '');
+                }
+            }
+
+            totalCallsCard.addEventListener('click', () => toggleCallDetails('Total'));
+            notInterestedCard.addEventListener('click', () => toggleCallDetails('Not Interested'));
+            unansweredCard.addEventListener('click', () => toggleCallDetails('Unanswered'));
+            callbackCard.addEventListener('click', () => toggleCallDetails('Callback'));
+            interestedCard.addEventListener('click', () => toggleCallDetails('Interested'));
+
+            // Add this new code for the monthly button
+            const monthlyBtn = document.getElementById('monthlyBtn');
+            monthlyBtn.addEventListener('click', function() {
+                window.location.href = 'monthly_calls.html';
+            });
+
+            // Add event listener for Print button
+            const printBtn = document.getElementById('printBtn');
+            if (printBtn) {
+                printBtn.addEventListener('click', printCallDetails);
+            }
+
+            // Add event listener for Clear All button
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            if (clearAllBtn) {
+                clearAllBtn.addEventListener('click', function() {
+                    const status = this.getAttribute('data-status');
+                    clearCallDetails(status);
+                });
+            }
+        });
+
+        // ... (keep the rest of the existing code)
+    </script>
+</body>
+</html>
